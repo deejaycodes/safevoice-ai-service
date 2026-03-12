@@ -14,6 +14,7 @@ from models.urgency_classifier import UrgencyClassifier
 from models.risk_predictor import RiskPredictor
 from models.entity_extractor import EntityExtractor
 from models.action_recommender import ActionRecommender
+from models.spam_detector import SpamDetector
 from utils.database import DatabaseConnector
 from utils.monitoring import ModelMonitor
 
@@ -35,6 +36,7 @@ urgency_classifier = UrgencyClassifier()
 risk_predictor = RiskPredictor()
 entity_extractor = EntityExtractor()
 action_recommender = ActionRecommender()
+spam_detector = SpamDetector()
 db = DatabaseConnector()
 monitor = ModelMonitor()
 
@@ -48,7 +50,8 @@ def health_check():
             'urgency_classifier': urgency_classifier.is_loaded(),
             'risk_predictor': risk_predictor.is_loaded(),
             'entity_extractor': entity_extractor.is_loaded(),
-            'action_recommender': action_recommender.is_loaded()
+            'action_recommender': action_recommender.is_loaded(),
+            'spam_detector': spam_detector.is_loaded()
         }
     }), 200
 
@@ -83,7 +86,26 @@ def analyze_case():
         
         logger.info(f"Analyzing case: {report_id}")
         
-        # Run ML pipeline
+        # Check for spam FIRST
+        spam_check = spam_detector.is_spam(description)
+        if spam_check['is_spam']:
+            logger.warn(f"Spam detected: {spam_check['reason']} (confidence: {spam_check['confidence']})")
+            
+            REQUEST_COUNT.labels(endpoint='analyze', status='spam').inc()
+            
+            return jsonify({
+                'report_id': report_id,
+                'is_spam': True,
+                'spam_confidence': spam_check['confidence'],
+                'spam_reason': spam_check['reason'],
+                'urgency': 'low',
+                'classification': 'Spam/Invalid',
+                'immediate_danger': False,
+                'analyzed_at': datetime.utcnow().isoformat(),
+                'message': 'Report flagged as spam or invalid'
+            }), 200
+        
+        # Run ML pipeline for legitimate reports
         urgency_result = urgency_classifier.predict(description, incident_type)
         risk_result = risk_predictor.predict(description, urgency_result['urgency'])
         entities = entity_extractor.extract(description, location)
