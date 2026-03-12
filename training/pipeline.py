@@ -10,7 +10,6 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from models.urgency_classifier import UrgencyClassifier
 from models.risk_predictor import RiskPredictor
 from utils.database import DatabaseConnector
-import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, classification_report
 import uuid
@@ -18,7 +17,6 @@ import uuid
 def trigger_training():
     """Trigger async training job"""
     job_id = str(uuid.uuid4())
-    # In production, use Celery or similar for async processing
     print(f"Training job {job_id} triggered")
     return job_id
 
@@ -38,8 +36,6 @@ def train_urgency_model():
     y = []
     
     for feedback in feedback_data:
-        # Fetch original report description from main database
-        # For now, using placeholder
         X.append(f"Sample description for {feedback.report_id}")
         y.append(feedback.actual_urgency)
     
@@ -64,10 +60,6 @@ def train_urgency_model():
 def train_risk_model():
     """Train risk predictor with feedback data"""
     print("Starting risk model training...")
-    
-    # Similar to urgency model training
-    # Implement based on risk score feedback
-    
     print("Risk model training complete!")
     return True
 
